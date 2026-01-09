@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { User } from '../types';
 // FIX: Import Variants to fix type error
@@ -42,13 +43,12 @@ const Auth: React.FC<AuthProps> = ({ onLogin, users, setUsers, onBackToLanding }
     const [showSuccess, setShowSuccess] = useState(false);
 
     const validateSignup = () => {
-        // Validation logic remains the same
         if (!fullName.trim() || !email.trim() || !phone.trim() || !username.trim() || !password.trim()) { setError("All fields are required."); return false; }
         if (!/^[^\s@]+@gmail\.com$/i.test(email)) { setError("Invalid Gmail address."); return false; }
         if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) { setError("Email already registered."); return false; }
-        if (!/^\d{11}$/.test(phone)) { setError("Invalid 11-digit phone number."); return false; }
+        if (!/^0[6-9]\d{9}$/.test(phone)) { setError("Invalid Indian mobile number. Must be 11 digits and start with 0."); return false; }
         if (users.some(u => u.phone === phone)) { setError("Phone number already registered."); return false; }
-        if (users.some(u => u.username === username)) { setError("Username already taken."); return false; }
+        if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) { setError("Username already taken."); return false; }
         if (username.toLowerCase() === 'admin') { setError("Cannot register as 'admin'."); return false; }
         if (!/^[a-zA-Z0-9]{8,15}$/.test(password)) { setError("Password must be 8-15 alphanumeric characters."); return false; }
         return true;
@@ -60,7 +60,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, users, setUsers, onBackToLanding }
 
         setTimeout(() => { // Simulate network delay
             if (isLogin) {
-                const user = users.find(u => u.username === username);
+                const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
                 if (user && user.passwordHash === hashPassword(password)) {
                     if (user.isBanned) { setError("ACCOUNT SUSPENDED."); setIsLoading(false); return; }
                     setShowSuccess(true);
@@ -124,7 +124,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin, users, setUsers, onBackToLanding }
                                 <>
                                     <AuthInput icon={<UserIcon size={16} />} type="text" placeholder="FULL NAME" value={fullName} onChange={e => setFullName(e.target.value)} required />
                                     <AuthInput icon={<UserIcon size={16} />} type="email" placeholder="EMAIL (GMAIL)" value={email} onChange={e => setEmail(e.target.value)} required />
-                                    <AuthInput icon={<UserIcon size={16} />} type="tel" placeholder="PHONE (11-DIGIT)" value={phone} onChange={e => setPhone(e.target.value)} required />
+                                    <div className="space-y-2">
+                                        <AuthInput icon={<UserIcon size={16} />} type="tel" placeholder="PHONE (e.g., 09876543210)" value={phone} onChange={e => setPhone(e.target.value)} required />
+                                        <p className="text-xs text-gray-400 text-center">Must be a valid 11-digit Indian mobile number starting with 0.</p>
+                                    </div>
                                 </>
                             )}
                             <AuthInput icon={<UserIcon size={16} />} type="text" placeholder="OPERATOR ID" value={username} onChange={e => setUsername(e.target.value)} required />

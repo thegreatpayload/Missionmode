@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Heart, BrainCircuit } from 'lucide-react';
+import { Send, Heart, BrainCircuit, Clock } from 'lucide-react';
 import type { CommunityPost, User, Achievement } from '../types';
 import Certificate from './Certificate';
 
@@ -13,9 +13,32 @@ interface CommunityProps {
     onAchievementsUpdate: (achievements: Achievement[]) => void;
 }
 
+type SortBy = 'date' | 'likes';
+
+const SortButton: React.FC<{
+    currentSort: SortBy;
+    sortValue: SortBy;
+    setSort: (sortBy: SortBy) => void;
+    label: string;
+    icon: React.ReactNode;
+}> = ({ currentSort, sortValue, setSort, label, icon }) => (
+    <button
+        onClick={() => setSort(sortValue)}
+        className={`flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+            currentSort === sortValue
+                ? 'bg-indigo-600 text-white shadow'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+        }`}
+    >
+        {icon}
+        {label}
+    </button>
+);
+
 const Community: React.FC<CommunityProps> = ({ currentUser, posts, setPosts, achievements, onAchievementsUpdate }) => {
     const [selectedAchievementId, setSelectedAchievementId] = useState<string>('');
     const [animatingLikeId, setAnimatingLikeId] = useState<string | null>(null);
+    const [sortBy, setSortBy] = useState<SortBy>('date');
 
     const unpostedAchievements = achievements.filter(a => !a.isPosted);
 
@@ -71,7 +94,17 @@ const Community: React.FC<CommunityProps> = ({ currentUser, posts, setPosts, ach
         }));
     };
 
-    const approvedPosts = posts.filter(p => p.status === 'approved').sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const sortedPosts = useMemo(() => {
+        const approvedPosts = posts.filter(p => p.status === 'approved');
+        const postsToSort = [...approvedPosts];
+        if (sortBy === 'likes') {
+            postsToSort.sort((a, b) => b.likes.length - a.likes.length);
+        } else { // 'date'
+            postsToSort.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }
+        return postsToSort;
+    }, [posts, sortBy]);
+
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -96,48 +129,57 @@ const Community: React.FC<CommunityProps> = ({ currentUser, posts, setPosts, ach
                     )}
                 </div>
             </div>
-            <div className="lg:col-span-2 space-y-8">
-                {approvedPosts.map(post => (
-                    <motion.div 
-                        key={post.id} 
-                        initial={{ opacity: 0, y: 20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden relative"
-                        onDoubleClick={() => handleDoubleClickLike(post.id)}
-                    >
-                        <AnimatePresence>
-                            {animatingLikeId === post.id && (
-                                <motion.div
-                                    initial={{ scale: 0.5, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 1.2, opacity: 0, transition: { duration: 0.3 } }}
-                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                    className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
-                                >
-                                    <Heart
-                                        size={120}
-                                        className="text-red-500 drop-shadow-lg"
-                                        fill="currentColor"
-                                    />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        
-                        <Certificate achievement={post.achievement} username={post.username} />
-                        
-                        <div className="p-4 flex justify-between items-center">
-                            <div>
-                                <p className="font-bold">{post.username}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Posted on {new Date(post.createdAt).toLocaleDateString()}</p>
+            <div className="lg:col-span-2">
+                 <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">Community Feed</h2>
+                    <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                        <SortButton currentSort={sortBy} sortValue="date" setSort={setSortBy} label="Newest" icon={<Clock size={14}/>} />
+                        <SortButton currentSort={sortBy} sortValue="likes" setSort={setSortBy} label="Most Liked" icon={<Heart size={14}/>} />
+                    </div>
+                </div>
+                <div className="space-y-8">
+                    {sortedPosts.map(post => (
+                        <motion.div 
+                            key={post.id} 
+                            initial={{ opacity: 0, y: 20 }} 
+                            animate={{ opacity: 1, y: 0 }} 
+                            className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden relative"
+                            onDoubleClick={() => handleDoubleClickLike(post.id)}
+                        >
+                            <AnimatePresence>
+                                {animatingLikeId === post.id && (
+                                    <motion.div
+                                        initial={{ scale: 0.5, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 1.2, opacity: 0, transition: { duration: 0.3 } }}
+                                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                        className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
+                                    >
+                                        <Heart
+                                            size={120}
+                                            className="text-red-500 drop-shadow-lg"
+                                            fill="currentColor"
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            
+                            <Certificate achievement={post.achievement} username={post.username} />
+                            
+                            <div className="p-4 flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold">{post.username}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Posted on {new Date(post.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <button onClick={() => handleLike(post.id)} disabled={currentUser.isBanned} className="flex items-center gap-2 text-gray-500 dark:text-gray-400 disabled:cursor-not-allowed px-3 py-1.5 rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                                    <Heart size={20} className={post.likes.includes(currentUser.id) ? 'text-red-500 fill-current' : ''} />
+                                    {post.likes.length}
+                                </button>
                             </div>
-                            <button onClick={() => handleLike(post.id)} disabled={currentUser.isBanned} className="flex items-center gap-2 text-gray-500 dark:text-gray-400 disabled:cursor-not-allowed px-3 py-1.5 rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors">
-                                <Heart size={20} className={post.likes.includes(currentUser.id) ? 'text-red-500 fill-current' : ''} />
-                                {post.likes.length}
-                            </button>
-                        </div>
-                    </motion.div>
-                ))}
-                {approvedPosts.length === 0 && <p className="text-center text-gray-500 py-16">The community feed is empty. Be the first to share an achievement!</p>}
+                        </motion.div>
+                    ))}
+                    {sortedPosts.length === 0 && <p className="text-center text-gray-500 py-16">The community feed is empty. Be the first to share an achievement!</p>}
+                </div>
             </div>
         </div>
     );
